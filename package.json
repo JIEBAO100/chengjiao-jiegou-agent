@@ -1,0 +1,13 @@
+{
+  "name": "chengjiao-jiegou-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "成交结构拆解智能体 · 大小单拆解 + 主力行为研判 · Netlify 静态部署版",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "start": "node dev-server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

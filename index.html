@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成交结构拆解智能体 · 大小单拆解与主力行为研判</title>
+<meta name="description" content="实时拆解公开逐笔成交：大小单结构、主力行为研判。纯公开行情数据，不构成投资建议。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- 品牌栏：左上角项目名 + 参赛作品标识 -->
+<header class="brand-bar">
+  <div class="brand-left">
+    <svg class="brand-bull" viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M25 22 C19 15 11 12 4 15 C6 8 14 4 21 7 C25 8.5 27 13 27 18 Z" fill="#d9382b"/>
+      <path d="M39 22 C45 15 53 12 60 15 C58 8 50 4 43 7 C39 8.5 37 13 37 18 Z" fill="#d9382b"/>
+      <path d="M32 16 C41 16 47 23 47 32 C47 44 41 54 32 61 C23 54 17 44 17 32 C17 23 23 16 32 16 Z" fill="#8a1810"/>
+      <circle cx="26" cy="30" r="2.6" fill="#fffdf8"/>
+      <circle cx="38" cy="30" r="2.6" fill="#fffdf8"/>
+      <path d="M28.5 42.5 L35.5 42.5 L32 48 Z" fill="#fffdf8" opacity="0.9"/>
+    </svg>
+    <span class="brand-name">成交结构拆解智能体</span>
+    <span class="brand-tag">参赛作品 · 数据分析方向</span>
+  </div>
+  <div class="brand-right">
+    <span id="statusDot" class="status-dot"></span>
+    <span id="statusText" class="status-text">正在初始化</span>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- 主视觉 -->
+  <section class="hero">
+    <h1>把每一笔成交，<em>拆开</em>给你看</h1>
+    <p class="hero-sub">大小单拆解 × 主力行为研判 × 逐笔订单流视角</p>
+    <p class="hero-desc">
+      智能体实时抓取公开逐笔成交并滚雪球积累：先按金额把成交量拆成大单 / 中单 / 小单，
+      再结合订单流特征研判盘面属于主力真实吸筹、主力诱多出货，还是纯散户行情。
+      全程只用公开行情数据，不接交易权限、不下单、不登录。
+    </p>
+  </section>
+
+  <!-- 控制台 -->
+  <section class="console-card">
+    <div class="console-grid">
+      <div class="console-item">
+        <span class="console-label">市场</span>
+        <div class="seg" id="segMarket">
+          <button class="seg-btn is-active" data-value="perp">永续合约</button>
+          <button class="seg-btn" data-value="spot">现货</button>
+        </div>
+      </div>
+      <div class="console-item console-symbol">
+        <span class="console-label">币种</span>
+        <div class="symbol-picker">
+          <input
+            id="symbolInput"
+            class="symbol-input"
+            type="text"
+            placeholder="搜索币种：代号或名称，如 BTC / SOL"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="symbolDrop"
+          />
+          <button type="button" class="symbol-clear" id="symbolClear" title="清空搜索" hidden>×</button>
+          <div class="symbol-drop" id="symbolDrop" hidden role="listbox"></div>
+        </div>
+        <p class="symbol-meta" id="symbolMeta">正在加载币种…</p>
+      </div>
+      <div class="console-item">
+        <span class="console-label">周期</span>
+        <div class="seg" id="segInterval">
+          <button class="seg-btn is-active" data-value="1m">1分</button>
+          <button class="seg-btn" data-value="5m">5分</button>
+          <button class="seg-btn" data-value="15m">15分</button>
+          <button class="seg-btn" data-value="30m">30分</button>
+          <button class="seg-btn" data-value="1h">1时</button>
+          <button class="seg-btn" data-value="4h">4时</button>
+        </div>
+      </div>
+      <div class="console-item">
+        <span class="console-label">观察窗</span>
+        <div class="seg" id="segWindow">
+          <button class="seg-btn" data-value="16">16桶</button>
+          <button class="seg-btn is-active" data-value="32">32桶</button>
+          <button class="seg-btn" data-value="64">64桶</button>
+          <button class="seg-btn" data-value="128">128桶</button>
+        </div>
+      </div>
+      <div class="console-item console-run">
+        <span class="console-label">采集</span>
+        <button id="btnToggle" class="btn-main">停止采集</button>
+      </div>
+    </div>
+    <p class="console-note" id="marketNote">永续合约提供资金费率与持仓量数据；现货无这两项</p>
+      <p class="console-note dim" id="consoleHint">
+        说明：周期为交易所真实支持的K线档位（没有 10 分钟 / 20 分钟档，页面不合成假K线）；观察窗 = 参与统计的时间桶数量。结构类结论需要若干个「已完结」的时间桶，默认 1 分钟档约 6 分钟即可出结果（换成更长的周期，等待时间会相应变长）
+      </p>
+  </section>
+
+  <!-- 错误提示 -->
+  <section class="error-box" id="errorBox" hidden>
+    <p class="error-title" id="errorTitle">出现错误</p>
+    <p class="error-text" id="errorText"></p>
+  </section>
+
+  <!-- 结果区 -->
+  <section class="result-area" id="resultArea" hidden>
+
+    <div class="quote-grid" id="quoteGrid"></div>
+
+    <div class="collect-card">
+      <div class="collect-head">
+        <h2>逐笔采集状态</h2>
+        <span class="collect-live" id="collectLive">采集中</span>
+      </div>
+      <div class="collect-main">
+        <div class="collect-big">
+          <span class="collect-num" id="statSamples">0</span>
+          <span class="collect-cap">累计逐笔样本</span>
+        </div>
+        <div class="collect-big">
+          <span class="collect-num" id="statCoverage">—</span>
+          <span class="collect-cap">覆盖率（对账K线）</span>
+        </div>
+        <div class="collect-rows">
+          <div class="collect-row">
+            <span>当前桶进度</span>
+            <div class="bar"><i id="bucketBar"></i></div>
+            <b id="bucketBarText">—</b>
+          </div>
+          <div class="collect-row"><span>采集缺口</span><b id="statGaps">—</b></div>
+          <div class="collect-row"><span>数据通道</span><b id="statChannel">—</b></div>
+          <div class="collect-row"><span>轮询状态</span><b id="statPoll">—</b></div>
+          <div class="collect-row"><span>最近一笔</span><b id="statLastTrade">—</b></div>
+        </div>
+      </div>
+      <div class="bucket-strip" id="bucketStrip"></div>
+      <p class="strip-hint">
+        时间桶进度条：颜色越红代表该桶逐笔覆盖率越高；带斜纹的桶表示期间出现过采集缺口；虚线框为正在形成的当前桶
+      </p>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <h2>K线与成交结构</h2>
+        <div class="chart-chips">
+          <span class="chart-chip" id="candleChip">—</span>
+          <span class="chart-chip" id="sourceChip">—</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="klineCanvas" class="kline-canvas"></canvas>
+        <div class="chart-tip" id="chartTip" hidden></div>
+      </div>
+      <p class="chart-hint" id="chartHint">红涨绿跌 · 鼠标悬浮查看每根K线明细</p>
+    </div>
+
+    <!-- 成交结构拆解（大单 / 中单 / 小单） -->
+    <section class="struct-card">
+      <div class="card-head">
+        <h2>成交结构拆解 · 大单 / 中单 / 小单</h2>
+        <span class="chip" id="structSampleChip">—</span>
+      </div>
+      <div class="struct-grid" id="structGrid"></div>
+      <div class="share-bar" id="shareBar"></div>
+      <div class="share-legend" id="shareLegend"></div>
+      <p class="struct-note" id="structNote">—</p>
+    </section>
+
+    <!-- 主力行为研判 -->
+    <section class="verdict-card">
+      <div class="card-head">
+        <h2>主力行为研判</h2>
+        <span class="chip" id="verdictConfChip">—</span>
+      </div>
+      <div class="verdict-top">
+        <div class="verdict-badge" id="verdictBadge" data-key="pending">数据积累中</div>
+        <p class="verdict-desc" id="verdictDesc">—</p>
+      </div>
+      <div class="score-list" id="scoreList"></div>
+      <div class="evidence-grid">
+        <div class="evidence-col">
+          <h3 class="evidence-title is-support">支持证据</h3>
+          <ul class="evidence-list" id="evidenceSupport"></ul>
+        </div>
+        <div class="evidence-col">
+          <h3 class="evidence-title is-against">反对证据</h3>
+          <ul class="evidence-list" id="evidenceAgainst"></ul>
+        </div>
+      </div>
+      <p class="verdict-note" id="verdictNote">—</p>
+    </section>
+
+    <!-- 成交结构时间轴 -->
+    <section class="chart-card">
+      <div class="chart-head">
+        <h2>成交结构时间轴</h2>
+        <div class="chart-chips">
+          <span class="chart-chip" id="structWindowChip">—</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="structCanvas" class="kline-canvas struct-canvas"></canvas>
+        <div class="chart-tip" id="structTip" hidden></div>
+      </div>
+      <p class="chart-hint" id="structHint">
+        每个柱子是一个时间桶，自下而上依次为小单 / 中单 / 大单；折线是大单净额，零轴之上为净买入、之下为净卖出
+      </p>
+    </section>
+
+  </section>
+
+  <!-- 数据来源与技术说明（按约定放在页面底部，对外统一口径：综合平台） -->
+  <section class="notes-card">
+    <h2>数据来源与技术说明</h2>
+    <ul>
+      <li>本页面全部行情（K线、逐笔成交、合约信息）来自各大交易平台公开行情接口，均为真实数据，无任何模拟或演示数据。</li>
+      <li>逐笔成交接口只提供最近约 1000 条，历史靠页面每 2 秒轮询「滚雪球」积累；轮询间隔内成交超过单次上限造成的缺口会如实标注，绝不假装完整。</li>
+      <li>覆盖率 = 逐笔累计成交额 ÷ 同期K线成交额，是采集质量的自我校验；只统计完整跟踪过的已完结时间桶。</li>
+      <li>永续合约逐笔按「张数 × 合约乘数 × 成交价」换算成美元口径后再分档，大小单阈值随该币种自身成交分布自适应，不写死绝对金额。</li>
+      <li>技术栈为纯原生 HTML / CSS / JS（零第三方库、零 CDN），图表为 Canvas 自绘；逐笔数据优先浏览器直连交易所，断连时自动切换云端代理。</li>
+      <li>大小单分档不写死金额：中单线与大单线来自该币种自身的单笔成交额分布（中位数倍数 + 高分位护栏，并做 EMA 平滑），换任何一个币种都成立；同一套阈值同时用于「成交结构拆解」与「主力行为研判」，两个面板的数字不会互相打架。</li>
+      <li>主力行为用三个可复核的分数说话（主力吃货 / 主力出货 / 散户乱交易），最终结论取最高分；三个分数咬得很紧时判「结构模糊」，样本不足时判「数据积累中」，宁可说不知道也不硬给结论。每条结论都同时列出支持证据与反对证据。</li>
+      <li>结论切换有迟滞机制（新结论要领先旧结论一定幅度才切换），避免页面上判定结果来回跳动。</li>
+      <li>本工具不连接交易权限、不代客下单、不保存任何私钥或账户信息。</li>
+    </ul>
+  </section>
+
+  <!-- 免责声明 -->
+  <footer class="disclaimer">
+    <p>
+      <b>免责声明</b>：本工具仅用于市场数据观测与结构分析，不构成任何投资建议；数字资产合约风险极高，请谨慎参与。
+    </p>
+  </footer>
+</main>
+
+<script src="data-direct.js"></script>
+<script src="api-client.js"></script>
+<script src="trade-store.js"></script>
+<script src="classifier.js"></script>
+<script src="verdict-engine.js"></script>
+<script src="chart.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

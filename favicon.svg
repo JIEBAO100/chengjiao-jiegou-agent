@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 红牛标：上扬双角 + 牛头剪影，牛气冲天 -->
+  <path d="M25 22 C19 15 11 12 4 15 C6 8 14 4 21 7 C25 8.5 27 13 27 18 Z" fill="#d9382b"/>
+  <path d="M39 22 C45 15 53 12 60 15 C58 8 50 4 43 7 C39 8.5 37 13 37 18 Z" fill="#d9382b"/>
+  <path d="M32 16 C41 16 47 23 47 32 C47 44 41 54 32 61 C23 54 17 44 17 32 C17 23 23 16 32 16 Z" fill="#8a1810"/>
+  <circle cx="26" cy="30" r="2.6" fill="#fffdf8"/>
+  <circle cx="38" cy="30" r="2.6" fill="#fffdf8"/>
+  <path d="M28.5 42.5 L35.5 42.5 L32 48 Z" fill="#fffdf8" opacity="0.9"/>
+</svg>
