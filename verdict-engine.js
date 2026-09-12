@@ -21,8 +21,17 @@
   const MARGIN = 8;         // 领先优势下限，低于它判「结构模糊」
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  /** 饱和映射：把任意实数压到 0~1，防止某一维单独爆表绑架结论 */
+  /** 饱和映射：把任意实数压到 0~1，用于「越偏离越强」的幅度类特征 */
   const S = (x, sat) => clamp(Math.abs(x) / (sat || 1), 0, 1);
+  /**
+   * 单向斜坡：只有「高于门槛」才计分，低于门槛一律 0。
+   *
+   * 为什么必须有这个函数：S() 取的是绝对值，如果用它来判断「某比例高于门槛」，
+   * 就会变成「离门槛越远越强」——比例极低时也会拿满分。这正是自测抓到的缺陷：
+   * 大单占比 63% 的行情被判成「纯散户行情无主力」（因为小单占比 7% 离 45% 门槛很远，
+   * 反而被算成了散户特征）。凡是「高出某条线才算数」的特征，必须用 ramp 而不是 S。
+   */
+  const ramp = (x, from, span) => clamp((x - from) / (span || 1), 0, 1);
   const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
   const safeDiv = (a, b) => (Math.abs(b) > 1e-12 ? a / b : 0);
 
@@ -249,14 +258,15 @@ function buildProfile(trades, prev) {
       evidence.push({ side: 'accum', tone: 'against', text: '价格冲击弹性偏高，同等成交撬动的价格波动偏大' });
     }
     if (f.con > 0.35) {
-      accum += 12 * S(f.con - 0.35, 0.4);
+      accum += 12 * ramp(f.con, 0.35, 0.4);
       evidence.push({ side: 'accum', tone: 'support', text: '资金在时间上扎堆出现（集中度 ' + (f.con * 100).toFixed(0) + '%），有明确的大资金节奏' });
     }
     if (f.dvg > 0.02 && f.nbi > 0) {
       accum += 14 * S(f.dvg, 0.15);
       evidence.push({ side: 'accum', tone: 'support', text: '大单在吸、小单在抛，筹码由散户流向大资金' });
     }
-    accum -= 10 * S(f.ret - 0.5, 0.4);
+    // 小单占比偏高时扣分（用单向斜坡：占比低不该被扣，更不该反过来加分）
+    accum -= 10 * ramp(f.ret, 0.5, 0.4);
     accum += 8 * (1 - S(f.cv, 0.8));
 
     /* —— 主力出货：大单净卖却把价格往上抬（诱多） —— */
@@ -291,8 +301,10 @@ function buildProfile(trades, prev) {
 
     /* —— 散户乱交易：大单缺席，成交靠碎单堆 —— */
     let retail = 0;
+    // 注意：这里三项都是「越高越像散户」的单向判断，必须用 ramp 而不是 S
+    // （用 S 会把「数值离门槛很远」都算成特征，方向完全反过来）
     retail += 30 * (1 - S(f.largeShare, 0.25));
-    retail += 22 * S(f.ret - 0.45, 0.35);
+    retail += 22 * ramp(f.ret, 0.45, 0.35);
     retail += 14 * (1 - S(f.nbi, 0.5));
     retail += 10 * (1 - S(f.con, 0.35));
     if (f.largeShare < 0.25) {

@@ -33,6 +33,7 @@
   const RUN_PRICE_TOL = 0.0005; // 策略单聚合：价格偏离锚点上限（0.05%）
   const HIST_BINS = 28;         // 名义额对数直方图桶数：1 美元到约 1000 万美元，每桶约 1.78 倍宽
   const SAVE_PREFIX = 'cjx:v1'; // localStorage 键前缀（成交结构 v1）
+  const KEEP_CONFIGS = 3;       // 最多保留最近几份「币种+周期」的本地缓存
   const SAVE_FRESH_MS = 24 * 60 * 60 * 1000; // 本地缓存最长保留 24 小时，超时不恢复
 
   /** 名义额 → 对数直方图桶号（每桶宽度 10^0.25 ≈ 1.78 倍） */
@@ -415,13 +416,24 @@
         };
         localStorage.setItem(key, JSON.stringify(payload));
 
-        // 清掉其他配置下的旧缓存，防止本地存储越积越多
-        for (let i = localStorage.length - 1; i >= 0; i--) {
+        // 只保留最近 KEEP_CONFIGS 份配置的缓存：
+        //   · 浏览器里避免本地存储无限膨胀
+        //   · 命令行下允许同时分析多个币种（早先的实现会把别的币种直接删掉，
+        //     导致「分析完 BTC 再分析 ETH，BTC 的积累就没了」）
+        const others = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
           const k = localStorage.key(i);
-          if (k && k.indexOf(SAVE_PREFIX + ':') === 0 && k !== key) {
-            localStorage.removeItem(k);
+          if (!k || k === key || k.indexOf(SAVE_PREFIX + ':') !== 0) continue;
+          let at = 0;
+          try {
+            at = Number(JSON.parse(localStorage.getItem(k)).savedAt) || 0;
+          } catch (e) {
+            at = 0;
           }
+          others.push({ k, at });
         }
+        others.sort((a, b) => b.at - a.at);
+        others.slice(KEEP_CONFIGS - 1).forEach((o) => localStorage.removeItem(o.k));
         return true;
       } catch (e) {
         return false;

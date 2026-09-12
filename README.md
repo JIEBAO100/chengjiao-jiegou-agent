@@ -1,4 +1,3 @@
-在线链接：https://voluble-zabaione-2cd23b.netlify.app/
 # 成交结构拆解智能体
 
 **把每一笔成交拆开给你看** —— 大小单拆解 × 主力行为研判 × 逐笔订单流视角
@@ -6,6 +5,37 @@
 > 参赛作品 · 数据分析方向
 >
 > 建议仓库名：`chengjiao-jiegou-agent`
+
+在线链接：https://voluble-zabaione-2cd23b.netlify.app/
+
+> **关于本仓库与参赛表格中已提交说明的关系**
+> 参赛表格中提交的「项目文字说明」与「分步搭建指南」，描述的是本作品的**网页界面**
+> （即上方在线链接，与本仓库共用同一套分析引擎与分档阈值，结论完全一致）。
+> 本仓库在此基础上额外提供**面向 AI Agent 的技能形态与命令行入口**，并真实调用币安官方
+> 开源公开数据与官方公开行情入口。两者同源，不是两套东西。
+
+---
+
+## ⭐ 本作品是一个 Agent，并使用了币安官方开源资源
+
+| 官方开源资源 | 本作品的用法 | 状态 |
+|---|---|---|
+| [binance/binance-public-data](https://github.com/binance/binance-public-data)<br>官方历史公开数据 | `--official` 通道：下载并流式解析官方每日逐笔成交文件（aggTrades，现货与永续） | ✅ 已集成并实测 |
+| [binance/binance-spot-api-docs](https://github.com/binance/binance-spot-api-docs)<br>官方现货 API 文档 | `--live` 通道：按文档接入官方公开行情入口 `data-api.binance.vision`，读取实时逐笔、K线与 24 小时行情 | ✅ 已集成并实测 |
+| [binance/binance-skills-hub](https://github.com/binance/binance-skills-hub)<br>官方技能规范与市场 | 技能定义 `skills/chengjiao-jiegou/SKILL.md` 遵循其公布的技能格式，可用官方安装器装载 | ✅ 格式对齐并声明依赖 |
+
+```bash
+# 把本作品作为技能装载（官方安装器）
+npx skills add https://github.com/JIEBAO100/chengjiao-jiegou-agent
+
+# 或直接运行（四条通道都不需要 API 密钥）
+node agent.mjs BTC --skill      # 官方技能通道：调用官方 binance 技能的 binance-cli（未装则自动回退）
+node agent.mjs BTC --official   # 币安官方历史数据：一条命令立刻出完整结论
+node agent.mjs BTC --live       # 币安官方公开行情入口：实时逐笔（现货）
+node agent.mjs BTC              # 多平台实时逐笔：支持永续与现货
+```
+
+> 完整说明（官方资源的逐项取舍、Agent 工作流、输出字段、诚实边界）见 **[AGENT.md](./AGENT.md)**。
 
 ---
 
@@ -25,6 +55,8 @@
 
 ## 二、怎么用
 
+### 方式一：网页（推荐给普通用户）
+
 打开页面即可，无需注册、无需密钥：
 
 1. 选择市场（永续合约 / 现货）
@@ -34,6 +66,49 @@
 
 > 结构类结论需要若干个**已完结**的时间桶：1 分钟档约 6 分钟出结果，周期越长等待越久。
 > 样本不足时页面显示「数据积累中」，**不会用任何假数据凑结论**。
+
+### 方式二：命令行 / AI Agent（本作品同时是一个技能）
+
+除了网页，本作品还提供一个命令行入口，让 AI Agent 或脚本直接用一行命令拿到结论：
+
+```bash
+# 官方技能通道：调用官方 binance 技能的 binance-cli（未安装时自动回退并给安装命令）
+node agent.mjs BTC --skill --seconds 420
+
+# 官方公开数据通道（推荐：历史数据现成，一条命令出完整结论，无需密钥）
+node agent.mjs BTC --official
+node agent.mjs SOL --official --date 2026-09-11 --window 30m
+
+# 币安官方公开行情接口（实时，现货）
+node agent.mjs BTC --live --seconds 420
+
+# 多平台实时逐笔通道（支持永续与现货，需要积累时间）
+node agent.mjs BTC --seconds 420
+
+# 自然语言 / JSON 输出
+node agent.mjs "看看 SOL 现在的成交结构"
+node agent.mjs BTC --official --json
+```
+
+**作为技能安装**（技能定义见 `skills/chengjiao-jiegou/SKILL.md`，格式与公开技能市场的规范一致）：
+
+```bash
+npx skills add https://github.com/JIEBAO100/chengjiao-jiegou-agent
+```
+
+**用到的官方开源资源**（真实调用，逐项取舍见 [AGENT.md](./AGENT.md)）：
+
+- [binance/binance-public-data](https://github.com/binance/binance-public-data) ——
+  官方历史公开数据仓库（`data.binance.vision`）：`--official` 模式下载并解析真实的历史逐笔
+  成交（aggTrades）文件，**不需要 API 密钥**
+- [binance/binance-spot-api-docs](https://github.com/binance/binance-spot-api-docs) ——
+  官方现货 API 文档记载的公开行情入口（`data-api.binance.vision`）：`--live` 模式读官方
+  实时逐笔、K线与 24 小时行情，同样**不需要 API 密钥**
+- [binance/binance-skills-hub](https://github.com/binance/binance-skills-hub) ——
+  技能规范与市场：本作品的技能定义完全遵循其格式，可用官方安装器装载
+
+> 命令行版本与网页版**共用同一套算法与分档阈值**，两处结论不会互相打架。
+> 实时通道积累的数据存在 `.cjx-agent-state.json`，多次运行会自动累加（建议 `--seconds 400` 以上拿到完整结论）。
 
 ---
 
@@ -145,5 +220,22 @@ node 检查上传格式.mjs github  # 上传前体检（GitHub 包）
 ```
 
 五套自测合计 168 项，全部通过。
+
+---
+
+## 十、仓库版本说明（本版本相较网页版新增了什么）
+
+网页仪表盘（在线链接即那个站）与本仓库是同一套分析引擎，本仓库额外包含「Agent 形态」的完整实现：
+
+| 新增内容 | 文件 | 说明 |
+|---|---|---|
+| 技能定义 | `skills/chengjiao-jiegou/SKILL.md` | 遵循官方技能规范，Agent 读完即知道何时调用、怎么调用、结论怎么解释 |
+| Agent 命令行入口 | `agent.mjs` | 三条数据通道（两条为币安官方公开入口），文本与 JSON 两种输出 |
+| 官方数据通道 | `agent.mjs` 内 | 币安官方历史公开数据（逐笔文件）+ 官方公开行情入口（实时），均免密钥 |
+| Agent 说明 | `AGENT.md` | 官方资源逐项取舍、工作流、复现步骤、诚实边界 |
+| 引擎修正 | `verdict-engine.js` | 修掉「大单占比越高反而越像散户」的方向性缺陷（自测实测抓到） |
+| 仓库修正 | `trade-store.js` | 保存时不再删除其它币种的本地积累（保留最近 3 份配置） |
+
+> 已修复的缺陷全部来自真实数据 + 真实环境的自测（168 项），不是读代码读出来的。
 
 **免责声明**：本工具仅用于市场数据观测与结构分析，不构成任何投资建议；数字资产合约风险极高，请谨慎参与。
